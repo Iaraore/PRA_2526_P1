@@ -1,12 +1,19 @@
 #include "Circle.h"
-#include <iostream>
 #include <cmath>
 
-Circle::Circle() : Shape(), center(0, 0), radius(1.0) {}
+// Constructor por defecto: llama al constructor de Shape() implícitamente (rojo)
+Circle::Circle() : Shape() {
+    this->center = Point2D(0, 0);
+    this->radius = 1.0;
+}
 
-Circle::Circle(std::string color, Point2D center, double radius) 
-    : Shape(color), center(center), radius(radius) {}
+// Constructor parametrizado: llama al constructor de Shape(color)
+Circle::Circle(std::string color, Point2D center, double radius) : Shape(color) {
+    this->center = center;
+    this->radius = radius;
+}
 
+// Getters y Setters
 Point2D Circle::get_center() const {
     return center;
 }
@@ -23,26 +30,32 @@ void Circle::set_radius(double r) {
     radius = r;
 }
 
+// Métodos virtuales
 double Circle::area() const {
-    return M_PI * radius * radius;
+    // Área = π * r^2
+    return 3.141592 * std::pow(radius, 2);
 }
 
 double Circle::perimeter() const {
-    return 2 * M_PI * radius;
+    // Perímetro = 2 * π * r
+    return 2 * 3.141592 * radius;
 }
 
 void Circle::translate(double incX, double incY) {
+    // Movemos el centro sumando los incrementos
     center.x += incX;
     center.y += incY;
 }
 
-void Circle::print() const {
+void Circle::print() {
+    // Reutilizamos el operador << para imprimir por pantalla
     std::cout << *this;
 }
 
+// Sobrecarga operador <<
 std::ostream& operator<<(std::ostream &out, const Circle &c) {
-    out << "Circle(color=" << c.color << ", center=(" << c.center.x << ", " 
-        << c.center.y << "), radius=" << c.radius << ")";
+    out << "[Circle: color = " << c.get_color() 
+        << "; center = " << c.center 
+        << "; radius = " << c.radius << "]";
     return out;
 }
-
