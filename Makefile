@@ -1,5 +1,5 @@
 # --- Regla principal (compila todo) ---
-all: bin/testListArray bin/testListLinked bin/testPoint2D bin/testCircle bin/testRectangle bin/testSquare bin/testDrawing
+all: bin/testNode bin/testListArray bin/testListLinked bin/testPoint2D bin/testCircle bin/testRectangle bin/testSquare bin/testDrawing
 
 # --- Reglas para Compilar Objetos (.o) ---
 
@@ -26,6 +26,9 @@ Drawing.o: Drawing.h Drawing.cpp List.h ListArray.h Shape.h Circle.h Square.h Re
 bin/testListArray: testListArray.cpp ListArray.h List.h
 	mkdir -p bin
 	g++ -o bin/testListArray testListArray.cpp
+bin/testNode: testNode.cpp Node.h
+	         mkdir -p bin
+	       	 g++ -o bin/testNode testNode.cpp Node.h
 
 bin/testListLinked: testListLinked.cpp ListLinked.h List.h Node.h
 	mkdir -p bin
