@@ -1,138 +1,137 @@
-#ifndef LISTLINKED_H
-#define LISTLINKED_H
+#ifndef LISTARRAY_H
+#define LISTARRAY_H
 
-#include "List.h"
-#include "Node.h"
 #include <ostream>
-#include <stdexcept>
+#include <stdexcept> // Para std::out_of_range
+#include "List.h"
 
 template <typename T>
-class ListLinked : public List<T> {
-private:
-    Node<T>* first;
-    int n;
+class ListArray : public List<T> {
 
-public:
-    ListLinked() {
-        first = nullptr;
-        n = 0;
-    }
-    
-    ~ListLinked() {
-        Node<T>* current = first;
-        while (current != nullptr) {
-            Node<T>* aux = current->next;
-            delete current;
-            current = aux;
-        }
-    }
-    
-    void insert(int pos, T e) override {
-        if (pos < 0 || pos > n) {
-            throw std::out_of_range("Posición fuera de rango");
-        }
-        
-        if (pos == 0) {
-            first = new Node<T>(e, first);
-        } else {
-            Node<T>* current = first;
-            for (int i = 0; i < pos - 1; i++) {
-                current = current->next;
+    private:
+        T* arr;             // Puntero al array dinámico
+        int max;            // Capacidad actual del array
+        int n;              // Número actual de elementos
+        static const int MINSIZE = 2; // Tamaño mínimo
+
+        // Estrategia de redimensionado
+        void resize(int new_size) {
+            T* new_arr = new T[new_size];
+            for (int i = 0; i < n; i++) {
+                new_arr[i] = arr[i];
             }
-            current->next = new Node<T>(e, current->next);
+            delete[] arr;
+            arr = new_arr;
+            max = new_size;
         }
-        n++;
-    }
-    
-    void append(T e) override {
-        insert(n, e);
-    }
-    
-    void prepend(T e) override {
-        insert(0, e);
-    }
-    
-    T remove(int pos) override {
-        if (pos < 0 || pos >= n) {
-            throw std::out_of_range("Posición fuera de rango");
+
+    public:
+        // Constructor
+        ListArray() {
+            arr = new T[MINSIZE];
+            max = MINSIZE;
+            n = 0;
         }
-        
-        Node<T>* toDelete;
-        T elemento;
-        
-        if (pos == 0) {
-            toDelete = first;
-            first = first->next;
-            elemento = toDelete->data;
-        } else {
-            Node<T>* current = first;
-            for (int i = 0; i < pos - 1; i++) {
-                current = current->next;
+
+        // Destructor
+        ~ListArray() override {
+            delete[] arr;
+        }
+
+        // Sobrecarga operador []
+        T operator[](int pos) {
+            if (pos < 0 || pos >= n) {
+                throw std::out_of_range("Posición fuera de rango en operator[]");
             }
-            toDelete = current->next;
-            current->next = toDelete->next;
-            elemento = toDelete->data;
+            return arr[pos];
         }
-        
-        delete toDelete;
-        n--;
-        return elemento;
-    }
-    
-    T get(int pos) const override {
-        if (pos < 0 || pos >= n) {
-            throw std::out_of_range("Posición fuera de rango");
-        }
-        
-        Node<T>* current = first;
-        for (int i = 0; i < pos; i++) {
-            current = current->next;
-        }
-        return current->data;
-    }
-    
-    int search(T e) const override {
-        Node<T>* current = first;
-        int pos = 0;
-        while (current != nullptr) {
-            if (current->data == e) {
-                return pos;
+
+        // Sobrecarga global operador <<
+        // Se define friend dentro de la clase para acceder a atributos privados si fuera necesario,
+        // o simplemente para imprimir usando el formato de lista.
+        friend std::ostream& operator<<(std::ostream &out, const ListArray<T> &list) {
+            out << "[";
+            for (int i = 0; i < list.n; i++) {
+                out << list.arr[i];
+                if (i < list.n - 1) out << ", ";
             }
-            current = current->next;
-            pos++;
+            out << "]";
+            return out;
         }
-        return -1;
-    }
-    
-    bool empty() const override {
-        return n == 0;
-    }
-    
-    int size() const override {
-        return n;
-    }
-    
-    T operator[](int pos) {
-        return get(pos);
-    }
-    
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const ListLinked<U>& list);
+
+        // --- Implementación de métodos heredados de List<T> ---
+
+        void insert(int pos, T e) override {
+            if (pos < 0 || pos > n) {
+                throw std::out_of_range("Posición inválida en insert");
+            }
+            // Si el array está lleno, duplicamos el tamaño
+            if (n == max) {
+                resize(max * 2);
+            }
+            // Desplazamos elementos a la derecha para hacer hueco (mantenimiento de contigüidad)
+            for (int i = n; i > pos; i--) {
+                arr[i] = arr[i - 1];
+            }
+            arr[pos] = e;
+            n++;
+        }
+
+        void append(T e) override {
+            insert(n, e); // Inserta al final
+        }
+
+        void prepend(T e) override {
+            insert(0, e); // Inserta al principio
+        }
+
+        T remove(int pos) override {
+            if (pos < 0 || pos >= n) {
+                throw std::out_of_range("Posición inválida en remove");
+            }
+            
+            T elementoEliminado = arr[pos];
+
+            // Desplazamos elementos a la izquierda para tapar el hueco (mantenimiento de contigüidad)
+            for (int i = pos; i < n - 1; i++) {
+                arr[i] = arr[i + 1];
+            }
+            n--;
+
+            // Si está "demasiado vacío" (ej: usamos menos de 1/4 y es mayor que MINSIZE), reducimos a la mitad
+            // Esta lógica evita estar redimensionando constantemente si insertamos/borramos en el límite.
+            /* Nota: La lógica exacta de reducción queda a criterio, pero esta es segura */
+            if (max > MINSIZE && n < max / 4) {
+                resize(max / 2);
+            }
+
+            return elementoEliminado;
+        }
+
+        T get(int pos) override {
+            if (pos < 0 || pos >= n) {
+                throw std::out_of_range("Posición inválida en get");
+            }
+            return arr[pos];
+        }
+
+        int search(T e) override {
+            for (int i = 0; i < n; i++) {
+                if (arr[i] == e) {
+                    return i;
+                }
+            }
+            return -1; // No encontrado
+        }
+
+        bool empty() override {
+            return n == 0;
+        }
+
+        int size() override {
+            return n;
+        }
 };
 
-template <typename T>
-std::ostream& operator<<(std::ostream& out, const ListLinked<T>& list) {
-    out << "[";
-    Node<T>* current = list.first;
-    while (current != nullptr) {
-        out << current->data;
-        if (current->next != nullptr) {
-            out << ", ";
-        }
-        current = current->next;
-    }
-    out << "]";
-    return out;
-}
 #endif
 
