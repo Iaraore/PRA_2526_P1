@@ -1,59 +1,55 @@
-#ifndef LISTARRAY_H
-#define LISTARRAY_H
+#ifndef LISTLINKED_H
+#define LISTLINKED_H
 
 #include <ostream>
-#include <stdexcept> // Para std::out_of_range
+#include <stdexcept>
 #include "List.h"
+#include "Node.h"
 
 template <typename T>
-class ListArray : public List<T> {
+class ListLinked : public List<T> {
 
     private:
-        T* arr;             // Puntero al array dinámico
-        int max;            // Capacidad actual del array
-        int n;              // Número actual de elementos
-        static const int MINSIZE = 2; // Tamaño mínimo
-
-        // Estrategia de redimensionado
-        void resize(int new_size) {
-            T* new_arr = new T[new_size];
-            for (int i = 0; i < n; i++) {
-                new_arr[i] = arr[i];
-            }
-            delete[] arr;
-            arr = new_arr;
-            max = new_size;
-        }
+        Node<T>* first; // Puntero al primer nodo
+        int n;          // Número de elementos
 
     public:
         // Constructor
-        ListArray() {
-            arr = new T[MINSIZE];
-            max = MINSIZE;
+        ListLinked() {
+            first = nullptr;
             n = 0;
         }
 
         // Destructor
-        ~ListArray() override {
-            delete[] arr;
+        ~ListLinked() override {
+            while (first != nullptr) {
+                Node<T>* aux = first->next;
+                delete first;
+                first = aux;
+            }
         }
 
         // Sobrecarga operador []
         T operator[](int pos) {
             if (pos < 0 || pos >= n) {
-                throw std::out_of_range("Posición fuera de rango en operator[]");
+                throw std::out_of_range("Posición inválida en operator[]");
             }
-            return arr[pos];
+            // Recorremos hasta la posición
+            Node<T>* aux = first;
+            for (int i = 0; i < pos; i++) {
+                aux = aux->next;
+            }
+            return aux->data;
         }
 
         // Sobrecarga global operador <<
-        // Se define friend dentro de la clase para acceder a atributos privados si fuera necesario,
-        // o simplemente para imprimir usando el formato de lista.
-        friend std::ostream& operator<<(std::ostream &out, const ListArray<T> &list) {
+        friend std::ostream& operator<<(std::ostream &out, const ListLinked<T> &list) {
             out << "[";
-            for (int i = 0; i < list.n; i++) {
-                out << list.arr[i];
-                if (i < list.n - 1) out << ", ";
+            Node<T>* aux = list.first;
+            while (aux != nullptr) {
+                out << aux->data;
+                if (aux->next != nullptr) out << ", ";
+                aux = aux->next;
             }
             out << "]";
             return out;
@@ -65,63 +61,86 @@ class ListArray : public List<T> {
             if (pos < 0 || pos > n) {
                 throw std::out_of_range("Posición inválida en insert");
             }
-            // Si el array está lleno, duplicamos el tamaño
-            if (n == max) {
-                resize(max * 2);
+
+            // Caso especial: Insertar al principio (o lista vacía)
+            if (pos == 0) {
+                // El nuevo nodo apunta a lo que antes era first
+                first = new Node<T>(e, first);
+            } 
+            // Caso general: Insertar en medio o final
+            else {
+                Node<T>* prev = first;
+                // Avanzamos hasta el nodo ANTERIOR a la posición (pos-1)
+                for (int i = 0; i < pos - 1; i++) {
+                    prev = prev->next;
+                }
+                // Creamos nodo nuevo que apunte al siguiente del previo
+                // Y actualizamos el previo para que apunte al nuevo
+                prev->next = new Node<T>(e, prev->next);
             }
-            // Desplazamos elementos a la derecha para hacer hueco (mantenimiento de contigüidad)
-            for (int i = n; i > pos; i--) {
-                arr[i] = arr[i - 1];
-            }
-            arr[pos] = e;
             n++;
         }
 
         void append(T e) override {
-            insert(n, e); // Inserta al final
+            insert(n, e);
         }
 
         void prepend(T e) override {
-            insert(0, e); // Inserta al principio
+            insert(0, e);
         }
 
         T remove(int pos) override {
             if (pos < 0 || pos >= n) {
                 throw std::out_of_range("Posición inválida en remove");
             }
-            
-            T elementoEliminado = arr[pos];
 
-            // Desplazamos elementos a la izquierda para tapar el hueco (mantenimiento de contigüidad)
-            for (int i = pos; i < n - 1; i++) {
-                arr[i] = arr[i + 1];
+            Node<T>* toDelete;
+            T dataRemoved;
+
+            // Caso especial: Eliminar el primero
+            if (pos == 0) {
+                toDelete = first;
+                first = first->next;
+            } 
+            // Caso general: Eliminar en medio o final
+            else {
+                Node<T>* prev = first;
+                for (int i = 0; i < pos - 1; i++) {
+                    prev = prev->next;
+                }
+                toDelete = prev->next;
+                prev->next = toDelete->next;
             }
+
+            dataRemoved = toDelete->data;
+            delete toDelete;
             n--;
-
-            // Si está "demasiado vacío" (ej: usamos menos de 1/4 y es mayor que MINSIZE), reducimos a la mitad
-            // Esta lógica evita estar redimensionando constantemente si insertamos/borramos en el límite.
-            /* Nota: La lógica exacta de reducción queda a criterio, pero esta es segura */
-            if (max > MINSIZE && n < max / 4) {
-                resize(max / 2);
-            }
-
-            return elementoEliminado;
+            
+            return dataRemoved;
         }
 
         T get(int pos) override {
             if (pos < 0 || pos >= n) {
                 throw std::out_of_range("Posición inválida en get");
             }
-            return arr[pos];
+            Node<T>* aux = first;
+            for (int i = 0; i < pos; i++) {
+                aux = aux->next;
+            }
+            return aux->data;
         }
 
         int search(T e) override {
-            for (int i = 0; i < n; i++) {
-                if (arr[i] == e) {
+            Node<T>* aux = first;
+            int i = 0;
+            while (aux != nullptr) {
+                if (aux->data == e) {
                     return i;
                 }
+                aux = aux->next;
+                i++;
             }
-            return -1; // No encontrado
+            return -1;
         }
 
         bool empty() override {
